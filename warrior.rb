@@ -15,7 +15,7 @@ class Warrior < SimpleDelegator
 
   def gather_environment_information
     important_spaces = listen
-    TurnAction.get(:neutralize_enemy).enemy_list = important_spaces.select{|space|space.enemy?}
+    TurnAction.get(:neutralize_enemy).enemy_list = important_spaces.select{|space|is_enemy? space}
     TurnAction.get(:handle_captive).captive_list = important_spaces.select{|space|space.captive?}
     #TurnAction.get(:handle_bomb).captive_list = important_spaces.select{|space|space.ticking?}
   end
@@ -40,8 +40,16 @@ class Warrior < SimpleDelegator
     health > Warrior::HEALTH_LOW_LEVEL
   end
 
-  def enemies_around_me
-    Directions::NAMES.select{|direction|feel(direction).enemy?}
+  def enemies_around_me(include_captives = true)
+    if include_captives
+      Directions::NAMES.select{|direction| is_enemy?(feel direction)}
+    else
+      Directions::NAMES.select{|direction| feel(direction).enemy?}
+    end
+  end
+
+  def is_enemy? space
+    space.enemy? or space.character.downcase == 's'
   end
 
   def captives_around_me
@@ -61,7 +69,8 @@ class Warrior < SimpleDelegator
   end
 
   def surrounded?
-    enemies_around_me.length > 1
+    include_captives = false
+    enemies_around_me(include_captives).length > 1
   end
 
   def attack! direction

@@ -64,8 +64,16 @@ class NeutralizeEnemy < TurnAction
     Warrior.current.bind!(Warrior.current.enemies_around_me.first)
   end
 
+  def enemy_bound? space
+    space.captive?
+  end
+
   def hit_first_closest_enemy
-    Warrior.current.attack! Warrior.current.enemies_around_me.first
+    if Warrior.current.enemies_around_me(false).any?
+      Warrior.current.attack! Warrior.current.enemies_around_me(false).first
+    elsif Warrior.current.enemies_around_me.any?
+      Warrior.current.attack! Warrior.current.enemies_around_me.first
+    end
   end
 end
 
@@ -96,7 +104,7 @@ class HandleCaptive < TurnAction
   end
 
   private
-  
+
   def search_for_captive
     Warrior.current.walk!(Warrior.current.direction_of self.class.captive_list.first)
   end
