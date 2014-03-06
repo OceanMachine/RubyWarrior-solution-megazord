@@ -2,13 +2,8 @@ require 'pry'
 class Player
   def play_turn(warrior)
     Warrior.current= warrior
-
     if Warrior.healthy?
-      if Warrior.enemies_around_me.any?
-        Warrior.hit_first_closest_enemy
-      else
-        Warrior.walk_to_stairs
-      end
+      Warrior.neutralize_enemy
     else
       Warrior.smart_heal
     end
@@ -17,10 +12,7 @@ class Player
 end
 
 class Warrior
-  DIRECTIONS = %i(forward backward left right)
-  OPOSITE_DIRECTIONS = {:left => :right,:right => :left,:forward => :backward, :backward => :forward}
-  HEALTH_LOW_LEVEL = 7
-
+  HEALTH_LOW_LEVEL = 4
   @@dangerous_direction = nil
 
   def self.current= original_warrior
@@ -35,6 +27,10 @@ class Warrior
     TurnAction.get(:smart_heal).perform
   end
 
+  def self.neutralize_enemy
+    TurnAction.get(:neutralize_enemy).perform 
+  end
+
   def self.walk_to_stairs
     current.walk! current.direction_of_stairs
   end
@@ -43,12 +39,8 @@ class Warrior
     current.health > Warrior::HEALTH_LOW_LEVEL
   end
 
-  def self.hit_first_closest_enemy
-    current.attack! enemies_around_me.first
-  end
-
   def self.enemies_around_me
-    DIRECTIONS.select{|direction|current.feel(direction).enemy?}
+    Directions::NAMES.select{|direction|current.feel(direction).enemy?}
   end
 
   def self.im_in_safe_place?
@@ -56,26 +48,21 @@ class Warrior
   end
 
   def self.escape
-    @@dangerous_direction = OPOSITE_DIRECTIONS[current.direction_of_stairs]
-    current.walk! first_safe_direction
+    @@dangerous_direction = Directions::OPOSITE_DIRECTIONS[current.direction_of_stairs]
+    current.walk! Directions::first_safe_direction
   end
 
-  def self.first_safe_direction
-    DIRECTIONS.detect do |direction|
-      is_safe_direction?(direction)
-    end
+  def self.surrounded?
+    enemies_around_me.length > 1
   end
-
-  def self.is_safe_direction?(direction)
-    current.feel(direction).empty? and not current.feel(direction).stairs?
-  end
-
 end
 
 class TurnAction
   def self.get name
-    if :smart_heal
+    if name == :smart_heal
       SmartHeal.new
+    elsif name == :neutralize_enemy
+      NeutralizeEnemy.new
     end
   end
 end
@@ -87,5 +74,43 @@ class SmartHeal < TurnAction
     else
       Warrior.escape
     end
+  end
+end
+
+class NeutralizeEnemy < TurnAction
+  def perform
+    if Warrior.surrounded?
+      bind_enemy
+    else
+      if Warrior.enemies_around_me.empty?
+        Warrior.walk_to_stairs
+      else
+        hit_first_closest_enemy
+      end
+    end
+  end
+
+  def bind_enemy
+    Warrior.current.bind!(Warrior.enemies_around_me.first)
+  end
+
+  def hit_first_closest_enemy
+    Warrior.current.attack! Warrior.enemies_around_me.first
+  end
+
+end
+
+module Directions
+  NAMES = %i(forward backward left right)
+  OPOSITE_DIRECTIONS = {:left => :right,:right => :left,:forward => :backward, :backward => :forward}
+
+  def self.first_safe_direction
+    NAMES.detect do |direction|
+      is_safe_direction?(direction)
+    end
+  end
+
+  def self.is_safe_direction?(direction)
+    Warrior.current.feel(direction).empty? and not Warrior.current.feel(direction).stairs?
   end
 end
