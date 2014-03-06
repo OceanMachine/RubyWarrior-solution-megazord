@@ -2,10 +2,11 @@ require 'pry'
 class Player
   def play_turn(warrior)
     Warrior.current= warrior
-    if Warrior.healthy?
-      Warrior.neutralize_enemy
+
+    if Warrior.enemies_around_me.empty?
+      Warrior.handle_captive
     else
-      Warrior.smart_heal
+      Warrior.neutralize_enemy
     end
 
   end
@@ -28,7 +29,11 @@ class Warrior
   end
 
   def self.neutralize_enemy
-    TurnAction.get(:neutralize_enemy).perform 
+    TurnAction.get(:neutralize_enemy).perform
+  end
+
+  def self.handle_captive
+    TurnAction.get(:handle_captive).perform
   end
 
   def self.walk_to_stairs
@@ -41,6 +46,13 @@ class Warrior
 
   def self.enemies_around_me
     Directions::NAMES.select{|direction|current.feel(direction).enemy?}
+  end
+
+  def self.captives_around_me
+    Directions::NAMES.select do |direction|
+      space = current.feel(direction)
+      space.captive? and space.character.downcase != 's'
+    end
   end
 
   def self.im_in_safe_place?
@@ -63,6 +75,8 @@ class TurnAction
       SmartHeal.new
     elsif name == :neutralize_enemy
       NeutralizeEnemy.new
+    elsif name == :handle_captive
+      HandleCaptive.new
     end
   end
 end
@@ -79,17 +93,16 @@ end
 
 class NeutralizeEnemy < TurnAction
   def perform
-    if Warrior.surrounded?
-      bind_enemy
-    else
-      if Warrior.enemies_around_me.empty?
-        Warrior.walk_to_stairs
+    if Warrior.healthy?
+      if Warrior.surrounded?
+        bind_enemy
       else
         hit_first_closest_enemy
       end
+    else
+      Warrior.smart_heal
     end
   end
-
   def bind_enemy
     Warrior.current.bind!(Warrior.enemies_around_me.first)
   end
@@ -97,7 +110,16 @@ class NeutralizeEnemy < TurnAction
   def hit_first_closest_enemy
     Warrior.current.attack! Warrior.enemies_around_me.first
   end
+end
 
+class HandleCaptive < TurnAction
+  def perform
+    if Warrior.captives_around_me.empty?
+      Warrior.walk_to_stairs
+    else
+      Warrior.current.rescue!(Warrior.captives_around_me.first)
+    end
+  end
 end
 
 module Directions
