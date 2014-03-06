@@ -1,4 +1,5 @@
 require 'pry'
+require 'delegate'
 class Player
   def play_turn(warrior)
     Warrior.current= warrior
@@ -12,7 +13,7 @@ class Player
   end
 end
 
-class Warrior
+class Warrior < SimpleDelegator
   HEALTH_LOW_LEVEL = 4
   @@dangerous_direction = nil
 
@@ -22,10 +23,6 @@ class Warrior
 
   def self.current
     @current
-  end
-
-  def initialize original_warrior
-    @original_warrior = original_warrior
   end
 
   def smart_heal
@@ -41,20 +38,20 @@ class Warrior
   end
 
   def walk_to_stairs
-    @original_warrior.walk! @original_warrior.direction_of_stairs
+    walk! direction_of_stairs
   end
 
   def healthy?
-    @original_warrior.health > Warrior::HEALTH_LOW_LEVEL
+    health > Warrior::HEALTH_LOW_LEVEL
   end
 
   def enemies_around_me
-    Directions::NAMES.select{|direction|@original_warrior.feel(direction).enemy?}
+    Directions::NAMES.select{|direction|feel(direction).enemy?}
   end
 
   def captives_around_me
     Directions::NAMES.select do |direction|
-      space = @original_warrior.feel(direction)
+      space = feel(direction)
       space.captive? and space.character.downcase != 's'
     end
   end
@@ -64,34 +61,18 @@ class Warrior
   end
 
   def escape
-    @@dangerous_direction = Directions::OPOSITE_DIRECTIONS[@original_warrior.direction_of_stairs]
-    @original_warrior.walk! Directions::first_safe_direction
+    @@dangerous_direction = Directions::OPOSITE_DIRECTIONS[direction_of_stairs]
+    walk! Directions::first_safe_direction
   end
 
   def surrounded?
     enemies_around_me.length > 1
   end
 
-  def rest!
-    @original_warrior.rest!
+  def attack! direction
+    puts "Attack!!"
+    super direction
   end
-
-  def rescue! target
-    @original_warrior.rescue!(target)
-  end
-
-  def attack! target
-    @original_warrior.attack!(target)
-  end
-
-  def bind! target
-    @original_warrior.bind!(target)
-  end
-
-  def feel target
-    @original_warrior.feel(target)
-  end
-
 end
 
 class TurnAction
