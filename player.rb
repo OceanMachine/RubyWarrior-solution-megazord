@@ -3,10 +3,10 @@ class Player
   def play_turn(warrior)
     Warrior.current= warrior
 
-    if Warrior.enemies_around_me.empty?
-      Warrior.handle_captive
+    if Warrior.current.enemies_around_me.empty?
+      Warrior.current.handle_captive
     else
-      Warrior.neutralize_enemy
+      Warrior.current.neutralize_enemy
     end
 
   end
@@ -17,56 +17,81 @@ class Warrior
   @@dangerous_direction = nil
 
   def self.current= original_warrior
-    @current = original_warrior
+    @current = new(original_warrior)
   end
 
   def self.current
     @current
   end
 
-  def self.smart_heal
+  def initialize original_warrior
+    @original_warrior = original_warrior
+  end
+
+  def smart_heal
     TurnAction.get(:smart_heal).perform
   end
 
-  def self.neutralize_enemy
+  def neutralize_enemy
     TurnAction.get(:neutralize_enemy).perform
   end
 
-  def self.handle_captive
+  def handle_captive
     TurnAction.get(:handle_captive).perform
   end
 
-  def self.walk_to_stairs
-    current.walk! current.direction_of_stairs
+  def walk_to_stairs
+    @original_warrior.walk! @original_warrior.direction_of_stairs
   end
 
-  def self.healthy?
-    current.health > Warrior::HEALTH_LOW_LEVEL
+  def healthy?
+    @original_warrior.health > Warrior::HEALTH_LOW_LEVEL
   end
 
-  def self.enemies_around_me
-    Directions::NAMES.select{|direction|current.feel(direction).enemy?}
+  def enemies_around_me
+    Directions::NAMES.select{|direction|@original_warrior.feel(direction).enemy?}
   end
 
-  def self.captives_around_me
+  def captives_around_me
     Directions::NAMES.select do |direction|
-      space = current.feel(direction)
+      space = @original_warrior.feel(direction)
       space.captive? and space.character.downcase != 's'
     end
   end
 
-  def self.im_in_safe_place?
+  def im_in_safe_place?
     enemies_around_me.empty?
   end
 
-  def self.escape
-    @@dangerous_direction = Directions::OPOSITE_DIRECTIONS[current.direction_of_stairs]
-    current.walk! Directions::first_safe_direction
+  def escape
+    @@dangerous_direction = Directions::OPOSITE_DIRECTIONS[@original_warrior.direction_of_stairs]
+    @original_warrior.walk! Directions::first_safe_direction
   end
 
-  def self.surrounded?
+  def surrounded?
     enemies_around_me.length > 1
   end
+
+  def rest!
+    @original_warrior.rest!
+  end
+
+  def rescue! target
+    @original_warrior.rescue!(target)
+  end
+
+  def attack! target
+    @original_warrior.attack!(target)
+  end
+
+  def bind! target
+    @original_warrior.bind!(target)
+  end
+
+  def feel target
+    @original_warrior.feel(target)
+  end
+
 end
 
 class TurnAction
@@ -83,41 +108,41 @@ end
 
 class SmartHeal < TurnAction
   def perform
-    if Warrior.im_in_safe_place?
+    if Warrior.current.im_in_safe_place?
       Warrior.current.rest!
     else
-      Warrior.escape
+      Warrior.current.escape
     end
   end
 end
 
 class NeutralizeEnemy < TurnAction
   def perform
-    if Warrior.healthy?
-      if Warrior.surrounded?
+    if Warrior.current.healthy?
+      if Warrior.current.surrounded?
         bind_enemy
       else
         hit_first_closest_enemy
       end
     else
-      Warrior.smart_heal
+      Warrior.current.smart_heal
     end
   end
   def bind_enemy
-    Warrior.current.bind!(Warrior.enemies_around_me.first)
+    Warrior.current.bind!(Warrior.current.enemies_around_me.first)
   end
 
   def hit_first_closest_enemy
-    Warrior.current.attack! Warrior.enemies_around_me.first
+    Warrior.current.attack! Warrior.current.enemies_around_me.first
   end
 end
 
 class HandleCaptive < TurnAction
   def perform
-    if Warrior.captives_around_me.empty?
-      Warrior.walk_to_stairs
+    if Warrior.current.captives_around_me.empty?
+      Warrior.current.walk_to_stairs
     else
-      Warrior.current.rescue!(Warrior.captives_around_me.first)
+      Warrior.current.rescue!(Warrior.current.captives_around_me.first)
     end
   end
 end
