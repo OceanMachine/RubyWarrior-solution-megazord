@@ -57,11 +57,21 @@ class NeutralizeEnemy < TurnAction
   private
 
   def search_for_enemy
-    Warrior.current.walk!(Warrior.current.direction_of self.class.enemy_list.first)
+    where_to_go = Warrior.current.direction_of self.class.enemy_list.first
+    #the direction i must go is the same as the stairs
+     where_to_go = first_empty_direction if Directions::NAMES.select{|direction| Warrior.current.feel(direction).stairs?}.first == Warrior.current.direction_of_stairs 
+      #choose a random direction that is not a "stair" neither a wall
+      Warrior.current.walk!(where_to_go)
   end
 
   def bind_enemy
     Warrior.current.bind!(Warrior.current.enemies_around_me.first)
+  end
+
+  def first_empty_direction
+    Directions::NAMES.select do |direction| 
+      not Warrior.current.feel(direction).wall? and not Warrior.current.feel(direction).stairs? and not Warrior.current.feel(direction).enemy? and not Warrior.current.feel(direction).captive?
+    end.first
   end
 
   def enemy_bound? space
