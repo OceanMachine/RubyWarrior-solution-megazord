@@ -1,6 +1,8 @@
 class TurnAction
   def self.get name
-    if name == :smart_heal
+    if name == :handle_bomb
+      DefuseBomb
+    elsif name == :smart_heal
       SmartHeal
     elsif name == :neutralize_enemy
       NeutralizeEnemy
@@ -12,6 +14,40 @@ class TurnAction
   def self.perform
     new.perform
   end
+end
+
+class DefuseBomb < TurnAction
+
+  def self.bomb= bomb
+    @bomb = bomb
+  end
+
+  def self.bomb?
+    not @bomb.empty?
+  end
+
+  def self.bomb
+    @bomb
+  end
+
+  def perform
+    if Warrior.current.feel(Warrior.current.direction_of self.class.bomb.first).enemy?
+      Warrior.current.neutralize_enemy
+    else
+      if Warrior.current.bombs_around_me.any?
+        Warrior.current.rescue!(Warrior.current.direction_of self.class.bomb.first)
+      else
+        search_for_bomb
+      end
+    end
+  end
+
+  private
+
+  def search_for_bomb
+    Warrior.current.walk!(Warrior.current.direction_of self.class.bomb.first)
+  end
+
 end
 
 class SmartHeal < TurnAction
@@ -59,9 +95,9 @@ class NeutralizeEnemy < TurnAction
   def search_for_enemy
     where_to_go = Warrior.current.direction_of self.class.enemy_list.first
     #the direction i must go is the same as the stairs
-     where_to_go = first_empty_direction if Directions::NAMES.select{|direction| Warrior.current.feel(direction).stairs?}.first == Warrior.current.direction_of_stairs 
-      #choose a random direction that is not a "stair" neither a wall
-      Warrior.current.walk!(where_to_go)
+    where_to_go = first_empty_direction if Directions::NAMES.select{|direction| Warrior.current.feel(direction).stairs?}.first == Warrior.current.direction_of_stairs
+    #choose a random direction that is not a "stair" neither a wall
+    Warrior.current.walk!(where_to_go)
   end
 
   def bind_enemy
@@ -69,7 +105,7 @@ class NeutralizeEnemy < TurnAction
   end
 
   def first_empty_direction
-    Directions::NAMES.select do |direction| 
+    Directions::NAMES.select do |direction|
       not Warrior.current.feel(direction).wall? and not Warrior.current.feel(direction).stairs? and not Warrior.current.feel(direction).enemy? and not Warrior.current.feel(direction).captive?
     end.first
   end

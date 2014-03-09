@@ -6,7 +6,9 @@ class Player
     Warrior.current= warrior
     Warrior.current.gather_environment_information
 
-    if TurnAction.get(:neutralize_enemy).any_enemies?
+    if TurnAction.get(:handle_bomb).bomb?
+      Warrior.current.defuse_bomb
+    elsif TurnAction.get(:neutralize_enemy).any_enemies?
       Warrior.current.neutralize_enemy
     else
       Warrior.current.handle_captive

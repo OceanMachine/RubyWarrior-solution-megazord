@@ -17,7 +17,11 @@ class Warrior < SimpleDelegator
     important_spaces = listen
     TurnAction.get(:neutralize_enemy).enemy_list = important_spaces.select{|space|is_enemy? space}
     TurnAction.get(:handle_captive).captive_list = important_spaces.select{|space|space.captive?}
-    #TurnAction.get(:handle_bomb).captive_list = important_spaces.select{|space|space.ticking?}
+    TurnAction.get(:handle_bomb).bomb = important_spaces.select{|space|space.ticking?}
+  end
+
+  def defuse_bomb
+    TurnAction.get(:handle_bomb).perform
   end
 
   def smart_heal
@@ -46,6 +50,10 @@ class Warrior < SimpleDelegator
     else
       Directions::NAMES.select{|direction| feel(direction).enemy?}
     end
+  end
+
+  def bombs_around_me
+    Directions::NAMES.select{|direction| feel(direction).ticking?}
   end
 
   def is_enemy? space
